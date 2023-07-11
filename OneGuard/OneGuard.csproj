@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net7.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="FastEndpoints" Version="5.13.0" />
+        <PackageReference Include="FastEndpoints.Swagger" Version="5.13.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Endpoints\Secrets\" />
+    </ItemGroup>
+
+</Project>
