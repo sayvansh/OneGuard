@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Application;
 using Core.Hashing;
 using FastEndpoints;
 using FastEndpoints.Swagger;
@@ -28,6 +29,7 @@ builder.Services.AddFastEndpoints();
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<ISecretService, SecretService>();
 builder.Services.TryAddSingleton<IHashService>(_ => new HmacHashingService(HashingType.HMACSHA384, 6));
+builder.Services.TryAddSingleton<ExceptionHandlerMiddleware>();
 
 
 builder.Services.AddDistributedMemoryCache();
@@ -70,6 +72,6 @@ app.UseFastEndpoints(config =>
 app.UseOpenApi();
 app.UseSwaggerUi3(s => s.ConfigureDefaults());
 // }
-
+app.UseMiddleware<ExceptionHandlerMiddleware>();
 
 await app.RunAsync();

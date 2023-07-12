@@ -3,7 +3,7 @@ using FluentValidation;
 
 namespace OneGuard.Endpoints.Secrets.Verify;
 
-file sealed class Endpoint : Endpoint<Request, Response>
+file sealed class Endpoint : Endpoint<Request>
 {
     private readonly ISecretService _secretService;
 
@@ -22,11 +22,8 @@ file sealed class Endpoint : Endpoint<Request, Response>
 
     public override async Task HandleAsync(Request request, CancellationToken ct)
     {
-        var verified = new Response
-        {
-            Verified = await _secretService.VerifyAsync(request.Secret, ct)
-        };
-        await SendOkAsync(verified, ct);
+        await _secretService.VerifyAsync(request.Secret, ct);
+        await SendOkAsync(ct);
     }
 }
 
@@ -36,7 +33,7 @@ file sealed class EndpointSummary : Summary<Endpoint>
     {
         Summary = "Verify secret in the system";
         Description = "Verify secret in the system";
-        Response<Response>(200, "Secret was successfully verified");
+        Response(200, "Secret was successfully verified");
     }
 }
 
@@ -53,9 +50,4 @@ file sealed class RequestValidator : Validator<Request>
 file sealed record Request
 {
     public string Secret { get; set; } = default!;
-}
-
-file sealed record Response
-{
-    public bool Verified { get; set; }
 }

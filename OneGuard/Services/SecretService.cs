@@ -1,5 +1,6 @@
 using Core.Hashing;
 using Microsoft.Extensions.Caching.Distributed;
+using OneGuard.Exceptions;
 
 namespace OneGuard.Services;
 
@@ -24,10 +25,9 @@ internal sealed class SecretService : ISecretService
         return secret;
     }
 
-    public async Task<bool> VerifyAsync(string secret, CancellationToken cancellationToken = default)
+    public async Task VerifyAsync(string secret, CancellationToken cancellationToken = default)
     {
-        if (await _cache.GetStringAsync(secret, cancellationToken) is null) return false;
+        if (await _cache.GetStringAsync(secret, cancellationToken) is null) throw new SecretNotVerifiedException();
         await _cache.RemoveAsync(secret, cancellationToken);
-        return true;
     }
 }
