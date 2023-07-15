@@ -2,7 +2,7 @@
 using FluentValidation;
 using OneGuard.Exceptions;
 
-namespace Application;
+namespace OneGuard;
 
 public sealed class ExceptionHandlerMiddleware : IMiddleware
 {

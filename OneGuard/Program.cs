@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Application;
 using Core.Hashing;
 using FastEndpoints;
 using FastEndpoints.Swagger;

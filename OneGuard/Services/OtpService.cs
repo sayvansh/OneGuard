@@ -48,6 +48,11 @@ internal sealed class OtpService : IOtpService
     {
         var recordId = await _cache.GetStringAsync(phoneNumber, token: cancellationToken);
 
+        if (recordId is null)
+        {
+            throw new OtpNotVerifiedException();
+        }
+
         var client = _clientFactory.CreateClient("Otp");
         var verifyOtpResponseMessage = await client.PostAsJsonAsync(VerifyOtpApiUrl, new
         {
