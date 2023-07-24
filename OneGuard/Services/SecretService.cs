@@ -20,7 +20,7 @@ internal sealed class SecretService : ISecretService
     {
         var secret = _hashService.Hash(phoneNumber, otp);
         var options = new DistributedCacheEntryOptions()
-            .SetAbsoluteExpiration(TimeSpan.FromMinutes(2));
+            .SetAbsoluteExpiration(TimeSpan.FromMinutes(15));
         await _cache.SetStringAsync(secret, phoneNumber, options, cancellationToken);
         return secret;
     }
