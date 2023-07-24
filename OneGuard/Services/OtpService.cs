@@ -44,7 +44,7 @@ internal sealed class OtpService : IOtpService
         await _cache.SetStringAsync(phoneNumber, recordId, options, cancellationToken);
     }
 
-    public async Task<string> VerifyAsync(string phoneNumber, string otp, CancellationToken cancellationToken = default)
+    public async Task<SecretResponse> VerifyAsync(string phoneNumber, string otp, CancellationToken cancellationToken = default)
     {
         var recordId = await _cache.GetStringAsync(phoneNumber, token: cancellationToken);
 

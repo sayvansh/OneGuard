@@ -3,14 +3,12 @@ using FluentValidation;
 
 namespace OneGuard.Endpoints.Verify;
 
-file sealed class Endpoint : Endpoint<Request, Response>
+file sealed class Endpoint : Endpoint<Request, SecretResponse>
 {
     private readonly IOtpService _otpService;
-    private readonly ISecretService _secretService;
 
-    public Endpoint(ISecretService secretService, IOtpService otpService)
+    public Endpoint(IOtpService otpService)
     {
-        _secretService = secretService;
         _otpService = otpService;
     }
 
@@ -18,7 +16,6 @@ file sealed class Endpoint : Endpoint<Request, Response>
     {
         Post("otp/verify");
         AllowAnonymous();
-        // Permissions("one_guard_verify_otp");
         Version(1);
     }
 
@@ -26,11 +23,7 @@ file sealed class Endpoint : Endpoint<Request, Response>
     {
         var verifyOtp = await _otpService.VerifyAsync(request.PhoneNumber, request.Otp, ct);
 
-        var response = new Response()
-        {
-            Secret = verifyOtp
-        };
-        await SendOkAsync(response, ct);
+        await SendOkAsync(verifyOtp, ct);
     }
 }
 
@@ -40,7 +33,7 @@ file sealed class EndpointSummary : Summary<Endpoint>
     {
         Summary = "Verify otp in the system";
         Description = "Verify otp in the system";
-        Response<Response>(200, "Verify was successfully sent");
+        Response<SecretResponse>(200, "Verify was successfully sent");
     }
 }
 
@@ -65,9 +58,4 @@ file sealed record Request
     public string PhoneNumber { get; set; } = default!;
 
     public string Otp { get; set; } = default!;
-}
-
-file sealed record Response
-{
-    public string Secret { get; set; } = default!;
 }

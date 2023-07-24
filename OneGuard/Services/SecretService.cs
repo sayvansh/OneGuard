@@ -16,13 +16,18 @@ internal sealed class SecretService : ISecretService
         _hashService = hashService;
     }
 
-    public async Task<string> GenerateAsync(string phoneNumber, string otp, CancellationToken cancellationToken = default)
+    public async Task<SecretResponse> GenerateAsync(string phoneNumber, string otp, CancellationToken cancellationToken = default)
     {
+        const int expireTimeSpan = 15;
         var secret = _hashService.Hash(phoneNumber, otp);
         var options = new DistributedCacheEntryOptions()
-            .SetAbsoluteExpiration(TimeSpan.FromMinutes(15));
+            .SetAbsoluteExpiration(TimeSpan.FromMinutes(expireTimeSpan));
         await _cache.SetStringAsync(secret, phoneNumber, options, cancellationToken);
-        return secret;
+        return new SecretResponse
+        {
+            Secret = secret,
+            ExpireAtUtc = DateTime.UtcNow.AddMinutes(expireTimeSpan)
+        };
     }
 
     public async Task VerifyAsync(string secret, CancellationToken cancellationToken = default)
