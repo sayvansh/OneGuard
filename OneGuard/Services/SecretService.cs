@@ -30,9 +30,14 @@ internal sealed class SecretService : ISecretService
         };
     }
 
-    public async Task VerifyAsync(string secret, CancellationToken cancellationToken = default)
+    public async Task VerifyAsync(string secret, string phoneNumber, CancellationToken cancellationToken = default)
     {
-        if (await _cache.GetStringAsync(secret, cancellationToken) is null) throw new SecretNotVerifiedException();
+        var secretPhoneNumber = await _cache.GetStringAsync(secret, cancellationToken);
+        if (secretPhoneNumber is null || secretPhoneNumber != phoneNumber)
+        {
+            throw new SecretNotVerifiedException();
+        }
+
         await _cache.RemoveAsync(secret, cancellationToken);
     }
 }
