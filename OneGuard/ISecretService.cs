@@ -2,9 +2,9 @@ namespace OneGuard;
 
 public interface ISecretService
 {
-    Task<SecretResponse> GenerateAsync(string phoneNumber, string otp, CancellationToken cancellationToken = default);
+    Task<SecretResponse> GenerateAsync(string phoneNumber, string otp, Guid endpointId, CancellationToken cancellationToken = default);
 
-    Task VerifyAsync(string secret, string phoneNumber, CancellationToken cancellationToken = default);
+    Task VerifyAsync(string secret, string phoneNumber, Guid endpointId, CancellationToken cancellationToken = default);
 }
 
 public sealed record SecretResponse

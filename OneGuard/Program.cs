@@ -2,6 +2,7 @@ using System.Text.Json;
 using Core.Hashing;
 using FastEndpoints;
 using FastEndpoints.Swagger;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using OneGuard;
 using OneGuard.Hashing;
@@ -33,8 +34,13 @@ builder.Services.TryAddSingleton<ExceptionHandlerMiddleware>();
 
 builder.Services.AddDistributedMemoryCache();
 
-builder.Services.AddHttpClient("Otp", c => { c.BaseAddress = new Uri(builder.Configuration.GetSection("Otp:BaseUrl").Value ?? throw new ArgumentNullException("Enter OtpService:BaseUrl")); });
+builder.Services.AddHttpClient("Bellman", c => { c.BaseAddress = new Uri(builder.Configuration.GetSection("Bellman:BaseUrl").Value ?? throw new ArgumentNullException("Enter Bellman:BaseUrl")); });
 
+var connectionString = builder.Configuration.GetConnectionString("Default") ??
+                       throw new ArgumentNullException("connectionString", "Enter 'Default' connection string in appsettings.json");
+
+builder.Services.AddDbContext<ApplicationDbContext>(
+    builder => builder.UseNpgsql(connectionString));
 
 builder.Services.SwaggerDocument(settings =>
 {
@@ -72,5 +78,18 @@ app.UseOpenApi();
 app.UseSwaggerUi3(s => s.ConfigureDefaults());
 // }
 app.UseMiddleware<ExceptionHandlerMiddleware>();
+
+using var serviceScope = app.Services.GetService<IServiceScopeFactory>()?.CreateScope();
+if (serviceScope == null) return;
+try
+{
+    var context = serviceScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    context.Database.Migrate();
+}
+catch (Exception e)
+{
+    Console.WriteLine(e);
+    // ignored
+}
 
 await app.RunAsync();

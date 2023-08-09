@@ -1,4 +1,5 @@
-using System.Text.Json.Serialization;
+using System.Net;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using OneGuard.Exceptions;
 
@@ -9,80 +10,89 @@ internal sealed class OtpService : IOtpService
     private readonly ISecretService _secretService;
     private readonly IDistributedCache _cache;
     private readonly IHttpClientFactory _clientFactory;
-    private const string SendOtpApiUrl = "SecureOtp/OtpRequest";
-    private const string VerifyOtpApiUrl = "SecureOtp/VerifyOtp";
+    private readonly ApplicationDbContext _dbContext;
+    private const string ApiUrl = "notifications/send";
 
 
-    public OtpService(ISecretService secretService, IDistributedCache cache, IHttpClientFactory clientFactory)
+    public OtpService(ISecretService secretService, IDistributedCache cache, IHttpClientFactory clientFactory, ApplicationDbContext dbContext)
     {
         _secretService = secretService;
         _cache = cache;
         _clientFactory = clientFactory;
+        _dbContext = dbContext;
     }
 
-    public async Task SendAsync(string phoneNumber, CancellationToken cancellationToken = default)
+    public async Task SendAsync(Guid endpointId, string phoneNumber, CancellationToken cancellationToken = default)
     {
-        var client = _clientFactory.CreateClient("Otp");
-        var sendOtpResponseMessage = await client.PostAsJsonAsync(SendOtpApiUrl, new
+        var endpoint = await _dbContext.Endpoints
+            .FirstOrDefaultAsync(endpoint => endpoint.Id == endpointId, cancellationToken: cancellationToken);
+        if (endpoint is null)
         {
-            PhoneNumber = phoneNumber,
+            throw new EndpointNotRegisteredException();
+        }
+
+        var otp = GenerateRandomNumber(endpoint.Length);
+        var body = endpoint.Content + "\n" + otp;
+        string[] to = { phoneNumber };
+
+        var client = _clientFactory.CreateClient("Bellman");
+        var sendOtpResponseMessage = await client.PostAsJsonAsync(ApiUrl, new
+        {
+            Content = body,
+            To = to,
+            Type = "sms",
+            Provider = "persiafava",
         }, cancellationToken: cancellationToken);
 
-
-        var sendOtpResponse =
-            await sendOtpResponseMessage.Content.ReadFromJsonAsync<GetSendOtpResponse>(
-                cancellationToken: cancellationToken);
-
-        if (sendOtpResponse is null)
+        if (sendOtpResponseMessage.StatusCode != HttpStatusCode.OK)
         {
             throw new OtpFailedToSendException();
         }
 
-        var recordId = sendOtpResponse.Id;
         var options = new DistributedCacheEntryOptions()
-            .SetAbsoluteExpiration(TimeSpan.FromSeconds(sendOtpResponse.Ttl));
-        await _cache.SetStringAsync(phoneNumber, recordId, options, cancellationToken);
+            .SetAbsoluteExpiration(TimeSpan.FromSeconds(endpoint.OtpTtl));
+        await _cache.SetStringAsync(phoneNumber, $"{otp},{endpoint.Id}", options, cancellationToken);
     }
+
 
     public async Task<SecretResponse> VerifyAsync(string phoneNumber, string otp, CancellationToken cancellationToken = default)
     {
-        var recordId = await _cache.GetStringAsync(phoneNumber, token: cancellationToken);
+        var record = await _cache.GetStringAsync(phoneNumber, token: cancellationToken);
 
-        if (recordId is null)
+        if (record is null)
         {
             throw new OtpNotVerifiedException();
         }
 
-        var client = _clientFactory.CreateClient("Otp");
-        var verifyOtpResponseMessage = await client.PostAsJsonAsync(VerifyOtpApiUrl, new
-        {
-            PhoneNumber = phoneNumber,
-            Otp = otp,
-            RecordId = recordId
-        }, cancellationToken: cancellationToken);
-        var verifyOtpResponse =
-            await verifyOtpResponseMessage.Content.ReadFromJsonAsync<GetVerifyOtpResponse>(
-                cancellationToken: cancellationToken);
+        var generatedOtp = record.Split(",")[0];
+        var endpointId = Guid.Parse(record.Split(",")[1]);
 
-        if (verifyOtpResponse is { IsValid: false })
+        if (generatedOtp != otp)
         {
             throw new OtpNotVerifiedException();
         }
 
-        var secret = await _secretService.GenerateAsync(phoneNumber, otp, cancellationToken);
+        var secret = await _secretService.GenerateAsync(phoneNumber, otp, endpointId, cancellationToken);
         await _cache.RemoveAsync(phoneNumber, cancellationToken);
         return secret;
     }
-}
 
-internal sealed record GetSendOtpResponse
-{
-    [JsonPropertyName("_id")] public string Id { get; init; }
+    private static string GenerateRandomNumber(int length)
+    {
+        if (length <= 0)
+        {
+            throw new OtpNotVerifiedException();
+        }
 
-    public int Ttl { get; set; }
-}
+        var random = new Random();
+        var digits = "0123456789".ToCharArray();
 
-internal sealed record GetVerifyOtpResponse
-{
-    public bool IsValid { get; set; }
+        var result = new char[length];
+        for (var i = 0; i < length; i++)
+        {
+            result[i] = digits[random.Next(0, digits.Length)];
+        }
+
+        return new string(result);
+    }
 }

@@ -22,7 +22,7 @@ file sealed class Endpoint : Endpoint<Request>
 
     public override async Task HandleAsync(Request request, CancellationToken ct)
     {
-        await _secretService.VerifyAsync(request.Secret, request.PhoneNumber, ct);
+        await _secretService.VerifyAsync(request.Secret, request.PhoneNumber, request.Endpoint, ct);
         await SendOkAsync(ct);
     }
 }
@@ -52,4 +52,6 @@ file sealed record Request
     public string Secret { get; set; } = default!;
 
     public string PhoneNumber { get; set; } = default!;
+
+    public Guid Endpoint { get; set; } = default!;
 }
