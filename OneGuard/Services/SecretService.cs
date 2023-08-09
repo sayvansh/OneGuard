@@ -50,7 +50,7 @@ internal sealed class SecretService : ISecretService
         var cachedPhoneNumber = record.Split(",")[0];
         var cachedEndpointId = Guid.Parse(record.Split(",")[1]);
 
-        if (cachedPhoneNumber != phoneNumber || cachedEndpointId != endpointId)
+        if (cachedPhoneNumber != phoneNumber || !cachedEndpointId.Equals(endpointId))
         {
             throw new SecretNotVerifiedException();
         }

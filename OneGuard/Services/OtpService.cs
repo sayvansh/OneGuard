@@ -35,19 +35,19 @@ internal sealed class OtpService : IOtpService
         var body = endpoint.Content + "\n" + otp;
         string[] to = { phoneNumber };
 
-        var client = _clientFactory.CreateClient("Bellman");
-        var sendOtpResponseMessage = await client.PostAsJsonAsync(ApiUrl, new
-        {
-            Content = body,
-            To = to,
-            Type = "sms",
-            Provider = "persiafava",
-        }, cancellationToken: cancellationToken);
+        // var client = _clientFactory.CreateClient("Bellman");
+        // var sendOtpResponseMessage = await client.PostAsJsonAsync(ApiUrl, new
+        // {
+        //     Content = body,
+        //     To = to,
+        //     Type = "sms",
+        //     Provider = "persiafava",
+        // }, cancellationToken: cancellationToken);
 
-        if (sendOtpResponseMessage.StatusCode != HttpStatusCode.OK)
-        {
-            throw new OtpFailedToSendException();
-        }
+        // if (sendOtpResponseMessage.StatusCode != HttpStatusCode.OK)
+        // {
+        //     throw new OtpFailedToSendException();
+        // }
 
         var options = new DistributedCacheEntryOptions()
             .SetAbsoluteExpiration(TimeSpan.FromSeconds(endpoint.OtpTtl));
