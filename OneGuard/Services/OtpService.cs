@@ -32,9 +32,8 @@ internal sealed class OtpService : IOtpService
         }
 
         var otp = GenerateRandomNumber(endpoint.Length);
-        var body = endpoint.Content + "\n" + otp;
+        var body = string.Format(endpoint.Content, otp);
         string[] to = { phoneNumber };
-
         var client = _clientFactory.CreateClient("Bellman");
         var sendOtpResponseMessage = await client.PostAsJsonAsync(ApiUrl, new
         {
