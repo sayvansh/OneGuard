@@ -1,6 +1,5 @@
 ﻿using System.Text.Json;
 using FluentValidation;
-using OneGuard.Exceptions;
 
 namespace OneGuard;
 

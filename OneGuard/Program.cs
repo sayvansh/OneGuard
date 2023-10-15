@@ -1,12 +1,12 @@
 using System.Text.Json;
-using Core.Hashing;
 using FastEndpoints;
 using FastEndpoints.Swagger;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using OneGuard;
-using OneGuard.Hashing;
-using OneGuard.Services;
+using OneGuard.Core;
+using OneGuard.Core.Services;
+using OneGuard.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
