@@ -43,14 +43,14 @@ file sealed class RequestValidator : Validator<Request>
     public RequestValidator()
     {
         RuleFor(request => request.PhoneNumber)
-            .NotEmpty().WithMessage("Add PhoneNumber")
-            .NotNull().WithMessage("Add PhoneNumber")
-            .MinimumLength(10)
-            .MaximumLength(14);
+            .NotEmpty().WithMessage("Enter Valid PhoneNumber")
+            .NotNull().WithMessage("Enter PhoneNumber")
+            .MinimumLength(10).WithMessage("Minimum Length of is 10")
+            .MaximumLength(11).WithMessage("Maximum Length of is 11");
 
         RuleFor(request => request.Otp)
-            .NotEmpty().WithMessage("Add Otp")
-            .NotNull().WithMessage("Add Otp");
+            .NotEmpty().WithMessage("Enter Valid Otp")
+            .NotNull().WithMessage("Enter Otp");
     }
 }
 

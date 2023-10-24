@@ -4,7 +4,7 @@ using OneGuard.Core;
 
 namespace OneGuard.Modules.Otp.Send;
 
-file sealed class Endpoint : Endpoint<Request>
+file sealed class Endpoint : Endpoint<Request,OtpResponse>
 {
     private readonly IOtpService _otpService;
 
@@ -22,8 +22,8 @@ file sealed class Endpoint : Endpoint<Request>
 
     public override async Task HandleAsync(Request request, CancellationToken ct)
     {
-        await _otpService.SendAsync(request.EndpointId, request.PhoneNumber, ct);
-        await SendOkAsync(ct);
+        var response = await _otpService.SendAsync(request.EndpointId, request.PhoneNumber, ct);
+        await SendOkAsync(response,ct);
     }
 }
 
@@ -33,7 +33,7 @@ file sealed class EndpointSummary : Summary<Endpoint>
     {
         Summary = "Send otp in the system";
         Description = "Send otp in the system";
-        Response(200, "Otp was successfully sent");
+        Response<OtpResponse>(200, "Otp was successfully sent");
     }
 }
 
@@ -46,6 +46,10 @@ file sealed class RequestValidator : Validator<Request>
             .NotNull().WithMessage("Add PhoneNumber")
             .MinimumLength(10)
             .MaximumLength(14);
+        
+        RuleFor(request => request.EndpointId)
+            .NotEmpty().WithMessage("Enter Valid EndpointId")
+            .NotNull().WithMessage("Enter EndpointId");
     }
 }
 

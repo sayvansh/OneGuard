@@ -22,15 +22,11 @@ internal sealed class OtpService : IOtpService
         _dbContext = dbContext;
     }
 
-    public async Task SendAsync(Guid endpointId, string phoneNumber, CancellationToken cancellationToken = default)
+    public async Task<OtpResponse> SendAsync(Guid endpointId, string phoneNumber, CancellationToken cancellationToken = default)
     {
         var endpoint = await _dbContext.Endpoints
             .FirstOrDefaultAsync(endpoint => endpoint.Id == endpointId, cancellationToken: cancellationToken);
-        if (endpoint is null)
-        {
-            throw new EndpointNotRegisteredException();
-        }
-
+        if (endpoint is null) throw new EndpointNotRegisteredException();
         var otp = Random.Shared.RandomNumber(endpoint.Length);
         var body = string.Format(endpoint.Content, otp);
         string[] to = { phoneNumber };
@@ -43,34 +39,27 @@ internal sealed class OtpService : IOtpService
             Provider = "persiafava",
         }, cancellationToken: cancellationToken);
 
-        if (!sendOtpResponseMessage.IsSuccessStatusCode)
-        {
-            throw new OtpFailedToSendException();
-        }
+        if (!sendOtpResponseMessage.IsSuccessStatusCode) throw new OtpFailedToSendException();
 
         var options = new DistributedCacheEntryOptions()
             .SetAbsoluteExpiration(TimeSpan.FromSeconds(endpoint.OtpTtl));
         await _cache.SetStringAsync(phoneNumber, $"{otp},{endpoint.Id}", options, cancellationToken);
+
+        return new OtpResponse
+        {
+            TtlInSeconds = endpoint.OtpTtl,
+            ExpireAtUtc = DateTime.UtcNow.AddSeconds(endpoint.OtpTtl)
+        };
     }
 
 
     public async Task<SecretResponse> VerifyAsync(string phoneNumber, string otp, CancellationToken cancellationToken = default)
     {
         var record = await _cache.GetStringAsync(phoneNumber, token: cancellationToken);
-
-        if (record is null)
-        {
-            throw new OtpNotVerifiedException();
-        }
-
+        if (record is null) throw new OtpVerificationFailedException();
         var generatedOtp = record.Split(",")[0];
         var endpointId = Guid.Parse(record.Split(",")[1]);
-
-        if (generatedOtp != otp)
-        {
-            throw new OtpNotVerifiedException();
-        }
-
+        if (generatedOtp != otp) throw new OtpVerificationFailedException();
         var secret = await _secretService.GenerateAsync(phoneNumber, otp, endpointId, cancellationToken);
         await _cache.RemoveAsync(phoneNumber, cancellationToken);
         return secret;

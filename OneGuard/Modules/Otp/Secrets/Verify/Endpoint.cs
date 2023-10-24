@@ -42,8 +42,16 @@ file sealed class RequestValidator : Validator<Request>
     public RequestValidator()
     {
         RuleFor(request => request.Secret)
-            .NotEmpty().WithMessage("Add Secret")
-            .NotNull().WithMessage("Add Secret");
+            .NotEmpty().WithMessage("Enter Valid Secret")
+            .NotNull().WithMessage("Enter Secret");
+
+        RuleFor(request => request.PhoneNumber)
+            .NotEmpty().WithMessage("Enter Valid PhoneNumber")
+            .NotNull().WithMessage("Enter PhoneNumber");
+
+        RuleFor(request => request.EndpointId)
+            .NotEmpty().WithMessage("Enter Valid EndpointId")
+            .NotNull().WithMessage("Enter EndpointId");
     }
 }
 

@@ -9,38 +9,22 @@ using OneGuard.Core.Services;
 using OneGuard.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.ConfigureKestrel((_, options) => { options.ListenAnyIP(7030, _ => { }); });
 
-builder.WebHost.ConfigureKestrel((_, options) =>
-{
-    options.ListenAnyIP(7030, _ => { });
-    // options.ListenAnyIP(5122, listenOptions =>
-    // {
-    //     listenOptions.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
-    //     listenOptions.UseHttps();
-    // });
-});
 builder.Services.AddHealthChecks();
 builder.Services.AddCors();
-
 builder.Services.AddAuthorization();
-
 builder.Services.AddFastEndpoints();
-
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<ISecretService, SecretService>();
 builder.Services.TryAddSingleton<IHashService>(_ => new HmacHashingService(HashingType.HMACSHA384, 6));
 builder.Services.TryAddSingleton<ExceptionHandlerMiddleware>();
-
-
 builder.Services.AddDistributedMemoryCache();
-
 builder.Services.AddHttpClient("Bellman", c => { c.BaseAddress = new Uri(builder.Configuration.GetSection("Bellman:BaseUrl").Value ?? throw new ArgumentNullException("Enter Bellman:BaseUrl")); });
 
 var connectionString = builder.Configuration.GetConnectionString("Default") ??
                        throw new ArgumentNullException("connectionString", "Enter 'Default' connection string in appsettings.json");
-
-builder.Services.AddDbContext<ApplicationDbContext>(
-    builder => builder.UseNpgsql(connectionString));
+builder.Services.AddDbContext<ApplicationDbContext>(option => option.UseNpgsql(connectionString));
 
 builder.Services.SwaggerDocument(settings =>
 {

@@ -35,6 +35,7 @@ internal sealed class SecretService : ISecretService
         return new SecretResponse
         {
             Secret = secret,
+            TtlInSeconds = endpoint.SecretTtl,
             ExpireAtUtc = DateTime.UtcNow.AddSeconds(endpoint.SecretTtl)
         };
     }
@@ -44,7 +45,7 @@ internal sealed class SecretService : ISecretService
         var record = await _cache.GetStringAsync(secret, cancellationToken);
         if (record is null)
         {
-            throw new SecretNotVerifiedException();
+            throw new SecretVerificationFailedException();
         }
 
         var cachedPhoneNumber = record.Split(",")[0];
@@ -52,7 +53,7 @@ internal sealed class SecretService : ISecretService
 
         if (cachedPhoneNumber != phoneNumber || !cachedEndpointId.Equals(endpointId))
         {
-            throw new SecretNotVerifiedException();
+            throw new SecretVerificationFailedException();
         }
 
         await _cache.RemoveAsync(secret, cancellationToken);
