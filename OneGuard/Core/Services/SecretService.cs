@@ -28,7 +28,7 @@ internal sealed class SecretService : ISecretService
             throw new EndpointNotRegisteredException();
         }
 
-        var secret = _hashService.Hash(phoneNumber, otp, endpointId.ToString());
+        var secret = _hashService.Hash(phoneNumber, otp, endpointId.ToString()).ToLower();
         var options = new DistributedCacheEntryOptions()
             .SetAbsoluteExpiration(TimeSpan.FromSeconds(endpoint.SecretTtl));
         await _cache.SetStringAsync(secret, $"{phoneNumber},{endpointId}", options, cancellationToken);

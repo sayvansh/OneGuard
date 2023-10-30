@@ -4,7 +4,7 @@ using OneGuard.Core;
 
 namespace OneGuard.Modules.Otp.Send;
 
-file sealed class Endpoint : Endpoint<Request,OtpResponse>
+file sealed class Endpoint : Endpoint<Request, OtpResponse>
 {
     private readonly IOtpService _otpService;
 
@@ -15,15 +15,15 @@ file sealed class Endpoint : Endpoint<Request,OtpResponse>
 
     public override void Configure()
     {
-        Post("otp");
+        Post("otp/{requestId}");
         AllowAnonymous();
         Version(1);
     }
 
     public override async Task HandleAsync(Request request, CancellationToken ct)
     {
-        var response = await _otpService.SendAsync(request.EndpointId, request.PhoneNumber, ct);
-        await SendOkAsync(response,ct);
+        var response = await _otpService.SendAsync(request.RequestId, ct);
+        await SendOkAsync(response, ct);
     }
 }
 
@@ -41,21 +41,13 @@ file sealed class RequestValidator : Validator<Request>
 {
     public RequestValidator()
     {
-        RuleFor(request => request.PhoneNumber)
-            .NotEmpty().WithMessage("Add PhoneNumber")
-            .NotNull().WithMessage("Add PhoneNumber")
-            .MinimumLength(10)
-            .MaximumLength(14);
-        
-        RuleFor(request => request.EndpointId)
-            .NotEmpty().WithMessage("Enter Valid EndpointId")
-            .NotNull().WithMessage("Enter EndpointId");
+        RuleFor(request => request.RequestId)
+            .NotEmpty().WithMessage("Enter valid RequestId")
+            .NotNull().WithMessage("Enter RequestId");
     }
 }
 
 file sealed record Request
 {
-    public string PhoneNumber { get; set; } = default!;
-
-    public Guid EndpointId { get; set; } = default!;
+    public string RequestId { get; set; } = default!;
 }
