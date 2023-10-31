@@ -15,15 +15,14 @@ file sealed class Endpoint : Endpoint<Request, SecretResponse>
 
     public override void Configure()
     {
-        Post("otp/verify");
+        Post("otp/{requestId}/verify");
         AllowAnonymous();
         Version(1);
     }
 
     public override async Task HandleAsync(Request request, CancellationToken ct)
     {
-        var verifyOtp = await _otpService.VerifyAsync(request.PhoneNumber, request.Otp, ct);
-
+        var verifyOtp = await _otpService.VerifyAsync(request.RequestId, request.Otp, ct);
         await SendOkAsync(verifyOtp, ct);
     }
 }
@@ -42,11 +41,9 @@ file sealed class RequestValidator : Validator<Request>
 {
     public RequestValidator()
     {
-        RuleFor(request => request.PhoneNumber)
-            .NotEmpty().WithMessage("Enter Valid PhoneNumber")
-            .NotNull().WithMessage("Enter PhoneNumber")
-            .MinimumLength(10).WithMessage("Minimum Length of is 10")
-            .MaximumLength(11).WithMessage("Maximum Length of is 11");
+        RuleFor(request => request.RequestId)
+            .NotEmpty().WithMessage("Enter Valid RequestId")
+            .NotNull().WithMessage("Enter RequestId");
 
         RuleFor(request => request.Otp)
             .NotEmpty().WithMessage("Enter Valid Otp")
@@ -56,7 +53,7 @@ file sealed class RequestValidator : Validator<Request>
 
 file sealed record Request
 {
-    public string PhoneNumber { get; set; } = default!;
+    public string RequestId { get; set; } = default!;
 
     public string Otp { get; set; } = default!;
 }
