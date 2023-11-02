@@ -4,13 +4,13 @@ using OneGuard.Core;
 
 namespace OneGuard.Modules.Otp.Request;
 
-file sealed class Endpoint : Endpoint<Request, OtpRequestResponse>
+file sealed class Endpoint : Endpoint<Request, OtpRequest>
 {
-    private readonly IOtpService _otpService;
+    private readonly IOtpRequest _otpRequest;
 
-    public Endpoint(IOtpService otpService)
+    public Endpoint(IOtpRequest otpRequest)
     {
-        _otpService = otpService;
+        _otpRequest = otpRequest;
     }
 
     public override void Configure()
@@ -22,7 +22,7 @@ file sealed class Endpoint : Endpoint<Request, OtpRequestResponse>
 
     public override async Task HandleAsync(Request request, CancellationToken ct)
     {
-        var response = await _otpService.RequestAsync(request.EndpointId, request.PhoneNumber, ct);
+        var response = await _otpRequest.RequestAsync(request.EndpointId, request.PhoneNumber, ct);
         await SendOkAsync(response, ct);
     }
 }
@@ -33,7 +33,7 @@ file sealed class EndpointSummary : Summary<Endpoint>
     {
         Summary = "Request otp";
         Description = "Request to generate otp request";
-        Response<OtpRequestResponse>(200, "Successful");
+        Response<OtpRequest>(200, "Successful");
     }
 }
 

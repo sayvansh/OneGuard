@@ -17,6 +17,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddFastEndpoints();
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<ISecretService, SecretService>();
+builder.Services.AddScoped<IOtpRequest, OtpRequestService>();
 builder.Services.TryAddSingleton<IHashService>(_ => new HmacHashingService(HashingType.HMACSHA384, 6));
 builder.Services.TryAddSingleton<ExceptionHandlerMiddleware>();
 builder.Services.AddDistributedMemoryCache();
@@ -45,7 +46,7 @@ app.UseCors(b => b.AllowAnyHeader()
     .AllowAnyMethod()
     .SetIsOriginAllowed(_ => true)
     .AllowCredentials());
-
+app.UseMiddleware<ExceptionHandlerMiddleware>();
 app.UseHealthChecks("/health");
 app.UseFastEndpoints(config =>
 {
@@ -61,7 +62,6 @@ app.UseFastEndpoints(config =>
 app.UseOpenApi();
 app.UseSwaggerUi3(s => s.ConfigureDefaults());
 // }
-app.UseMiddleware<ExceptionHandlerMiddleware>();
 
 using var serviceScope = app.Services.GetService<IServiceScopeFactory>()?.CreateScope();
 if (serviceScope == null) return;

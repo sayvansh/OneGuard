@@ -12,81 +12,39 @@ internal sealed class OtpService : IOtpService
     private readonly IDistributedCache _cache;
     private readonly IHttpClientFactory _clientFactory;
     private readonly ApplicationDbContext _dbContext;
-    private readonly IHashService _hashService;
+    private readonly IOtpRequest _otpRequest;
     private const string ApiUrl = "notifications/send";
 
-
-    public OtpService(ISecretService secretService, IDistributedCache cache, IHttpClientFactory clientFactory, ApplicationDbContext dbContext, IHashService hashService)
+    public OtpService(ISecretService secretService, IDistributedCache cache, IHttpClientFactory clientFactory, ApplicationDbContext dbContext, IOtpRequest otpRequest)
     {
         _secretService = secretService;
         _cache = cache;
         _clientFactory = clientFactory;
         _dbContext = dbContext;
-        _hashService = hashService;
-    }
-
-    public async Task<OtpRequestResponse> RequestAsync(Guid endpointId, string phoneNumber, CancellationToken cancellationToken = default)
-    {
-        var alreadyRequestedResponse = await IsRequestedAsync(endpointId, phoneNumber, cancellationToken);
-        if (alreadyRequestedResponse is not null) return alreadyRequestedResponse;
-
-        var endpoint = await _dbContext.Endpoints
-            .FirstOrDefaultAsync(endpoint => endpoint.Id == endpointId, cancellationToken: cancellationToken);
-        if (endpoint is null) throw new EndpointNotRegisteredException();
-
-        var expireAtUtc = DateTime.UtcNow.AddMinutes(10);
-        var otpRequestId = _hashService.Hash(endpointId.ToString(), phoneNumber, Random.Shared.RandomCharsAndNumbers(6)).ToLower();
-        var otpRequestResponse = new OtpRequestResponse
-        {
-            OtpRequestId = otpRequestId,
-            ExpireAtUtc = expireAtUtc,
-            EndpointId = endpointId,
-            PhoneNumber = phoneNumber
-        };
-        var options = new DistributedCacheEntryOptions()
-            .SetAbsoluteExpiration(TimeSpan.FromSeconds((expireAtUtc - DateTime.UtcNow).TotalSeconds));
-        await _cache.SetStringAsync(otpRequestId, JsonSerializer.Serialize(otpRequestResponse), options, cancellationToken);
-        await _cache.SetStringAsync($"{endpointId}.{phoneNumber}", otpRequestId, cancellationToken);
-        return otpRequestResponse;
-    }
-
-    private async Task<OtpRequestResponse?> IsRequestedAsync(Guid endpointId, string phoneNumber, CancellationToken cancellationToken = default)
-    {
-        var cachedOtpRequestId = await _cache.GetStringAsync($"{endpointId}.{phoneNumber}", token: cancellationToken);
-        if (cachedOtpRequestId is null) return null;
-        var cachedOtpRequestValue = await _cache.GetStringAsync(cachedOtpRequestId, token: cancellationToken);
-        if (cachedOtpRequestValue is null) return null;
-        return JsonSerializer.Deserialize<OtpRequestResponse>(cachedOtpRequestValue);
+        _otpRequest = otpRequest;
     }
 
     public async Task<OtpResponse> SendAsync(string otpRequestId, CancellationToken cancellationToken = default)
     {
-        var otpRequestValue = await _cache.GetStringAsync(otpRequestId, token: cancellationToken);
-        if (otpRequestValue is null) throw new InvalidOtpRequestIdException();
-        var otpRequestResponse = JsonSerializer.Deserialize<OtpRequestResponse>(otpRequestValue);
-        if (otpRequestResponse is null) throw new InvalidOtpRequestIdException();
-
+        var otpRequest = await _otpRequest.GetAsync(otpRequestId, cancellationToken);
         var otpModelValue = await _cache.GetStringAsync($"{otpRequestId}_SENT_OTP", token: cancellationToken);
         if (otpModelValue is not null)
         {
-            var cachedOtpModel = JsonSerializer.Deserialize<OtpModel>(otpModelValue);
-            if (cachedOtpModel is not null)
+            var cachedOtpModel = JsonSerializer.Deserialize<OtpModel>(otpModelValue)!;
+            return new OtpResponse
             {
-                return new OtpResponse
-                {
-                    TtlInSeconds = (int)(cachedOtpModel.ExpiresAtUtc - DateTime.Now).TotalSeconds,
-                    ExpireAtUtc = cachedOtpModel.ExpiresAtUtc
-                };
-            }
+                TtlInSeconds = (int)(cachedOtpModel.ExpiresAtUtc - DateTime.Now).TotalSeconds,
+                ExpireAtUtc = cachedOtpModel.ExpiresAtUtc
+            };
         }
 
         var endpoint = await _dbContext.Endpoints
-            .FirstOrDefaultAsync(endpoint => endpoint.Id == otpRequestResponse.EndpointId, cancellationToken: cancellationToken);
+            .FirstOrDefaultAsync(endpoint => endpoint.Id == otpRequest.EndpointId, cancellationToken: cancellationToken);
         if (endpoint is null) throw new EndpointNotRegisteredException();
 
         var otp = Random.Shared.RandomNumber(endpoint.Length);
         var body = string.Format(endpoint.Content, otp);
-        string[] to = { otpRequestResponse.PhoneNumber };
+        string[] to = { otpRequest.PhoneNumber };
         var client = _clientFactory.CreateClient("Bellman");
         var sendOtpResponseMessage = await client.PostAsJsonAsync(ApiUrl, new
         {
@@ -102,7 +60,7 @@ internal sealed class OtpService : IOtpService
             .SetAbsoluteExpiration(TimeSpan.FromSeconds(endpoint.OtpTtl));
         var otpModel = new OtpModel
         {
-            PhoneNumber = otpRequestResponse.PhoneNumber,
+            PhoneNumber = otpRequest.PhoneNumber,
             Code = otp,
             EndpointId = endpoint.Id,
             ExpiresAtUtc = DateTime.UtcNow.AddSeconds(endpoint.OtpTtl)
@@ -120,13 +78,13 @@ internal sealed class OtpService : IOtpService
     public async Task<SecretResponse> VerifyAsync(string otpRequestId, string otp, CancellationToken cancellationToken = default)
     {
         var record = await _cache.GetStringAsync($"{otpRequestId}_SENT_OTP", token: cancellationToken);
-        if (record is null) throw new OtpVerificationFailedException();
+        if (record is null) throw new InvalidOtpRequestIdException();
         var otpModel = JsonSerializer.Deserialize<OtpModel>(record);
         if (otpModel is null) throw new InvalidOtpRequestIdException();
         if (otpModel.Code != otp) throw new OtpVerificationFailedException();
+        await _otpRequest.VerifyAsync(otpRequestId, cancellationToken);
         var secret = await _secretService.GenerateAsync(otpModel.PhoneNumber, otp, otpModel.EndpointId, cancellationToken);
         await _cache.RemoveAsync($"{otpRequestId}_SENT_OTP", cancellationToken);
-        await _cache.RemoveAsync($"{otpModel.EndpointId}.{otpModel.PhoneNumber}", cancellationToken);
         return secret;
     }
 
