@@ -20,9 +20,19 @@ internal sealed class OtpRequestService : IOtpRequest
         _hashService = hashService;
     }
 
-    public async Task<OtpRequest> RequestAsync(Guid endpointId, string phoneNumber, CancellationToken cancellationToken = default)
+    public async Task<OtpRequest> RequestAsync(Guid endpointId, string phoneNumber, string messageData, CancellationToken cancellationToken = default)
     {
-        var otpRequest = await IsRequestedAsync(endpointId, phoneNumber, cancellationToken);
+        OtpRequest? otpRequest = null;
+        var cachedOtpRequestId = await _cache.GetStringAsync($"{endpointId}.{phoneNumber}", token: cancellationToken);
+        if (cachedOtpRequestId is not null)
+        {
+            var cachedOtpRequestValue = await _cache.GetStringAsync(cachedOtpRequestId, token: cancellationToken);
+            if (cachedOtpRequestValue is not null)
+            {
+                otpRequest = JsonSerializer.Deserialize<OtpRequest>(cachedOtpRequestValue);
+            }
+        }
+
         if (otpRequest is not null) return otpRequest;
 
         var endpoint = await _dbContext.Endpoints
@@ -36,7 +46,8 @@ internal sealed class OtpRequestService : IOtpRequest
             OtpRequestId = otpRequestId,
             ExpireAtUtc = expireAtUtc,
             EndpointId = endpointId,
-            PhoneNumber = phoneNumber
+            PhoneNumber = phoneNumber,
+            MessageData = messageData
         };
         var options = new DistributedCacheEntryOptions()
             .SetAbsoluteExpiration(TimeSpan.FromSeconds((expireAtUtc - DateTime.UtcNow).TotalSeconds));
@@ -59,14 +70,5 @@ internal sealed class OtpRequestService : IOtpRequest
     {
         var otpRequest = await GetAsync(otpRequestId, cancellationToken);
         await _cache.RemoveAsync($"{otpRequest.EndpointId}.{otpRequest.PhoneNumber}", cancellationToken);
-    }
-
-    private async Task<OtpRequest?> IsRequestedAsync(Guid endpointId, string phoneNumber, CancellationToken cancellationToken = default)
-    {
-        var cachedOtpRequestId = await _cache.GetStringAsync($"{endpointId}.{phoneNumber}", token: cancellationToken);
-        if (cachedOtpRequestId is null) return null;
-        var cachedOtpRequestValue = await _cache.GetStringAsync(cachedOtpRequestId, token: cancellationToken);
-        if (cachedOtpRequestValue is null) return null;
-        return JsonSerializer.Deserialize<OtpRequest>(cachedOtpRequestValue);
     }
 }

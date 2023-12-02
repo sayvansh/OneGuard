@@ -22,7 +22,7 @@ file sealed class Endpoint : Endpoint<Request, OtpRequest>
 
     public override async Task HandleAsync(Request request, CancellationToken ct)
     {
-        var response = await _otpRequest.RequestAsync(request.EndpointId, request.PhoneNumber, ct);
+        var response = await _otpRequest.RequestAsync(request.EndpointId, request.PhoneNumber,request.MessageData, ct);
         await SendOkAsync(response, ct);
     }
 }
@@ -56,6 +56,8 @@ file sealed class RequestValidator : Validator<Request>
 file sealed record Request
 {
     public string PhoneNumber { get; set; } = default!;
+    
+    public string? MessageData { get; set; } = default!;
 
     public Guid EndpointId { get; set; } = default!;
 }

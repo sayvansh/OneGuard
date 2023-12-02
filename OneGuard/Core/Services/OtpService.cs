@@ -43,12 +43,12 @@ internal sealed class OtpService : IOtpService
         if (endpoint is null) throw new EndpointNotRegisteredException();
 
         var otp = Random.Shared.RandomNumber(endpoint.Length);
-        var body = string.Format(endpoint.Content, otp);
+
         string[] to = { otpRequest.PhoneNumber };
         var client = _clientFactory.CreateClient("Bellman");
         var sendOtpResponseMessage = await client.PostAsJsonAsync(ApiUrl, new
         {
-            Content = body,
+            Content = otpRequest.MessageData is null ? string.Format(endpoint.Content, otp) : string.Format(endpoint.Content, otp, otpRequest.MessageData),
             To = to,
             Type = "sms",
             Provider = "persiafava",
