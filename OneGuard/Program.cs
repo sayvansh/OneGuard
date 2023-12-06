@@ -25,7 +25,7 @@ builder.Services.AddHttpClient("Bellman", c => { c.BaseAddress = new Uri(builder
 
 var connectionString = builder.Configuration.GetConnectionString("Default") ??
                        throw new ArgumentNullException("connectionString", "Enter 'Default' connection string in appsettings.json");
-builder.Services.AddDbContext<ApplicationDbContext>(option => option.UseNpgsql(connectionString));
+builder.Services.AddDbContextPool<ApplicationDbContext>(option => option.UseNpgsql(connectionString),poolSize:200);
 
 builder.Services.SwaggerDocument(settings =>
 {
