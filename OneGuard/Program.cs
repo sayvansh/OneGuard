@@ -19,7 +19,7 @@ builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<ISecretService, SecretService>();
 builder.Services.AddScoped<IOtpRequest, OtpRequestService>();
 builder.Services.TryAddSingleton<IHashService>(_ => new HmacHashingService(HashingType.HMACSHA384, 6));
-builder.Services.TryAddSingleton<ExceptionHandlerMiddleware>();
+builder.Services.TryAddSingleton<CustomExceptionHandler>();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddHttpClient("Bellman", c => { c.BaseAddress = new Uri(builder.Configuration.GetSection("Bellman:BaseUrl").Value ?? throw new ArgumentNullException("Enter Bellman:BaseUrl")); });
 
@@ -41,12 +41,11 @@ builder.Services.SwaggerDocument(settings =>
 
 
 var app = builder.Build();
-
+app.UseExceptionHandler("/error");
 app.UseCors(b => b.AllowAnyHeader()
     .AllowAnyMethod()
     .SetIsOriginAllowed(_ => true)
     .AllowCredentials());
-app.UseMiddleware<ExceptionHandlerMiddleware>();
 app.UseHealthChecks("/health");
 app.UseFastEndpoints(config =>
 {
@@ -60,7 +59,7 @@ app.UseFastEndpoints(config =>
 // if (app.Environment.IsDevelopment())
 // {
 app.UseOpenApi();
-app.UseSwaggerUi3(s => s.ConfigureDefaults());
+app.UseSwaggerUi(s => s.ConfigureDefaults());
 // }
 
 using var serviceScope = app.Services.GetService<IServiceScopeFactory>()?.CreateScope();
