@@ -51,7 +51,6 @@ internal sealed class OtpService : IOtpService
             Content = otpRequest.MessageData is null ? string.Format(endpoint.Content, otp) : string.Format(endpoint.Content, otp, otpRequest.MessageData),
             To = to,
             Type = "sms",
-            Provider = "persiafava",
         }, cancellationToken: cancellationToken);
 
         if (!sendOtpResponseMessage.IsSuccessStatusCode) throw new OtpFailedToSendException();
