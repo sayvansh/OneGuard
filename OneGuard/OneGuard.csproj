@@ -8,6 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Elastic.Apm.NetCoreAll" Version="1.25.1" />
         <PackageReference Include="FastEndpoints" Version="5.20.1" />
         <PackageReference Include="FastEndpoints.Swagger" Version="5.20.1" />
         <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.0" />

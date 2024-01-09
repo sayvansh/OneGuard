@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Elastic.Apm.NetCoreAll;
 using FastEndpoints;
 using FastEndpoints.Swagger;
 using Microsoft.EntityFrameworkCore;
@@ -15,11 +16,11 @@ builder.Services.AddHealthChecks();
 builder.Services.AddCors();
 builder.Services.AddAuthorization();
 builder.Services.AddFastEndpoints();
+builder.Services.AddExceptionHandler<CustomExceptionHandler>();
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<ISecretService, SecretService>();
 builder.Services.AddScoped<IOtpRequest, OtpRequestService>();
 builder.Services.TryAddSingleton<IHashService>(_ => new HmacHashingService(HashingType.HMACSHA384, 6));
-builder.Services.TryAddSingleton<CustomExceptionHandler>();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddHttpClient("Bellman", c => { c.BaseAddress = new Uri(builder.Configuration.GetSection("Bellman:BaseUrl").Value ?? throw new ArgumentNullException("Enter Bellman:BaseUrl")); });
 
@@ -47,6 +48,7 @@ app.UseCors(b => b.AllowAnyHeader()
     .SetIsOriginAllowed(_ => true)
     .AllowCredentials());
 app.UseHealthChecks("/health");
+app.UseAllElasticApm(builder.Configuration);
 app.UseFastEndpoints(config =>
 {
     config.Serializer.Options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
