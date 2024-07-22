@@ -1,46 +1,32 @@
 using System.Text.Json;
-using Core.Hashing;
+using Elastic.Apm.NetCoreAll;
 using FastEndpoints;
 using FastEndpoints.Swagger;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using OneGuard;
-using OneGuard.Hashing;
-using OneGuard.Services;
+using OneGuard.Core;
+using OneGuard.Core.Services;
+using OneGuard.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.ConfigureKestrel((_, options) => { options.ListenAnyIP(7030, _ => { }); });
 
-builder.WebHost.ConfigureKestrel((_, options) =>
-{
-    options.ListenAnyIP(7030, _ => { });
-    // options.ListenAnyIP(5122, listenOptions =>
-    // {
-    //     listenOptions.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
-    //     listenOptions.UseHttps();
-    // });
-});
 builder.Services.AddHealthChecks();
 builder.Services.AddCors();
-
 builder.Services.AddAuthorization();
-
 builder.Services.AddFastEndpoints();
-
+builder.Services.AddExceptionHandler<CustomExceptionHandler>();
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<ISecretService, SecretService>();
+builder.Services.AddScoped<IOtpRequest, OtpRequestService>();
 builder.Services.TryAddSingleton<IHashService>(_ => new HmacHashingService(HashingType.HMACSHA384, 6));
-builder.Services.TryAddSingleton<ExceptionHandlerMiddleware>();
-
-
 builder.Services.AddDistributedMemoryCache();
-
 builder.Services.AddHttpClient("Bellman", c => { c.BaseAddress = new Uri(builder.Configuration.GetSection("Bellman:BaseUrl").Value ?? throw new ArgumentNullException("Enter Bellman:BaseUrl")); });
 
 var connectionString = builder.Configuration.GetConnectionString("Default") ??
                        throw new ArgumentNullException("connectionString", "Enter 'Default' connection string in appsettings.json");
-
-builder.Services.AddDbContext<ApplicationDbContext>(
-    builder => builder.UseNpgsql(connectionString));
+builder.Services.AddDbContextPool<ApplicationDbContext>(option => option.UseNpgsql(connectionString),poolSize:200);
 
 builder.Services.SwaggerDocument(settings =>
 {
@@ -56,13 +42,13 @@ builder.Services.SwaggerDocument(settings =>
 
 
 var app = builder.Build();
-
+app.UseExceptionHandler("/error");
 app.UseCors(b => b.AllowAnyHeader()
     .AllowAnyMethod()
     .SetIsOriginAllowed(_ => true)
     .AllowCredentials());
-
 app.UseHealthChecks("/health");
+app.UseAllElasticApm(builder.Configuration);
 app.UseFastEndpoints(config =>
 {
     config.Serializer.Options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
@@ -75,9 +61,8 @@ app.UseFastEndpoints(config =>
 // if (app.Environment.IsDevelopment())
 // {
 app.UseOpenApi();
-app.UseSwaggerUi3(s => s.ConfigureDefaults());
+app.UseSwaggerUi(s => s.ConfigureDefaults());
 // }
-app.UseMiddleware<ExceptionHandlerMiddleware>();
 
 using var serviceScope = app.Services.GetService<IServiceScopeFactory>()?.CreateScope();
 if (serviceScope == null) return;
