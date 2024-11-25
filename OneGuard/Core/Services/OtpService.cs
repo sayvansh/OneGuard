@@ -13,7 +13,7 @@ internal sealed class OtpService : IOtpService
     private readonly IHttpClientFactory _clientFactory;
     private readonly ApplicationDbContext _dbContext;
     private readonly IOtpRequest _otpRequest;
-    private const string ApiUrl = "notifications/send";
+    private const string ApiUrl = "v2/notifications/send";
 
     public OtpService(ISecretService secretService, IDistributedCache cache, IHttpClientFactory clientFactory, ApplicationDbContext dbContext, IOtpRequest otpRequest)
     {
@@ -48,8 +48,10 @@ internal sealed class OtpService : IOtpService
         var client = _clientFactory.CreateClient("Bellman");
         var sendOtpResponseMessage = await client.PostAsJsonAsync(ApiUrl, new
         {
-            Content = otpRequest.MessageData is null ? string.Format(endpoint.Content, otp) : string.Format(endpoint.Content, otp, otpRequest.MessageData),
-            To = to,
+            PatternId = endpoint.Content,
+            Parameters = otpRequest.MessageData is null ? new[] { otp } : new[] { otpRequest.MessageData, otp },
+            // Content = otpRequest.MessageData is null ? string.Format(endpoint.Content, otp) : string.Format(endpoint.Content, otp, otpRequest.MessageData),
+            To = to.First(),
             Type = "sms",
         }, cancellationToken: cancellationToken);
 
