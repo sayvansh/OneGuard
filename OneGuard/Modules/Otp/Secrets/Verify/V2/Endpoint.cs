@@ -2,9 +2,9 @@ using FastEndpoints;
 using FluentValidation;
 using OneGuard.Core;
 
-namespace OneGuard.Modules.Otp.Secrets.Verify;
+namespace OneGuard.Modules.Otp.Secrets.Verify.V2;
 
-file sealed class Endpoint : Endpoint<Request>
+file sealed class Endpoint : Endpoint<Request, Response>
 {
     private readonly ISecretService _secretService;
 
@@ -17,13 +17,16 @@ file sealed class Endpoint : Endpoint<Request>
     {
         Post("otp/secrets/verify");
         AllowAnonymous();
-        Version(1);
+        Version(2);
     }
 
     public override async Task HandleAsync(Request request, CancellationToken ct)
     {
-        await _secretService.VerifyAsync(request.Secret, request.PhoneNumber, request.EndpointId, ct);
-        await SendOkAsync(ct);
+        var response = await _secretService.VerifyAsync(request.Secret, request.PhoneNumber, request.EndpointId, ct);
+        await SendOkAsync(new Response
+        {
+            Otp = response.Otp,
+        }, ct);
     }
 }
 
@@ -62,4 +65,9 @@ file sealed record Request
     public string PhoneNumber { get; set; } = default!;
 
     public Guid EndpointId { get; set; } = default!;
+}
+
+file sealed record Response
+{
+    public string Otp { get; set; } = default!;
 }

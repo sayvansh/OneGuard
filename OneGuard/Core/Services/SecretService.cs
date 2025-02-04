@@ -31,7 +31,7 @@ internal sealed class SecretService : ISecretService
         var secret = _hashService.Hash(phoneNumber, otp, endpointId.ToString()).ToLower();
         var options = new DistributedCacheEntryOptions()
             .SetAbsoluteExpiration(TimeSpan.FromSeconds(endpoint.SecretTtl));
-        await _cache.SetStringAsync(secret, $"{phoneNumber},{endpointId}", options, cancellationToken);
+        await _cache.SetStringAsync(secret, $"{phoneNumber},{endpointId},{otp}", options, cancellationToken);
         return new SecretResponse
         {
             Secret = secret,
@@ -40,7 +40,7 @@ internal sealed class SecretService : ISecretService
         };
     }
 
-    public async Task VerifyAsync(string secret, string phoneNumber, Guid endpointId, CancellationToken cancellationToken = default)
+    public async Task<VerifySecretResponse> VerifyAsync(string secret, string phoneNumber, Guid endpointId, CancellationToken cancellationToken = default)
     {
         var record = await _cache.GetStringAsync(secret, cancellationToken);
         if (record is null)
@@ -50,6 +50,7 @@ internal sealed class SecretService : ISecretService
 
         var cachedPhoneNumber = record.Split(",")[0];
         var cachedEndpointId = Guid.Parse(record.Split(",")[1]);
+        var cachedOtp = record.Split(",")[2];
 
         if (cachedPhoneNumber != phoneNumber || !cachedEndpointId.Equals(endpointId))
         {
@@ -57,5 +58,9 @@ internal sealed class SecretService : ISecretService
         }
 
         await _cache.RemoveAsync(secret, cancellationToken);
+        return new VerifySecretResponse
+        {
+            Otp = cachedOtp
+        };
     }
 }
