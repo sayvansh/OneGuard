@@ -26,7 +26,7 @@ builder.Services.AddHttpClient("Bellman", c => { c.BaseAddress = new Uri(builder
 
 var connectionString = builder.Configuration.GetConnectionString("Default") ??
                        throw new ArgumentNullException("connectionString", "Enter 'Default' connection string in appsettings.json");
-builder.Services.AddDbContextPool<ApplicationDbContext>(option => option.UseNpgsql(connectionString),poolSize:200);
+builder.Services.AddDbContextPool<ApplicationDbContext>(option => option.UseNpgsql(connectionString), poolSize: 200);
 
 builder.Services.SwaggerDocument(settings =>
 {
@@ -38,6 +38,20 @@ builder.Services.SwaggerDocument(settings =>
     };
     settings.EnableJWTBearerAuth = false;
     settings.MaxEndpointVersion = 1;
+    settings.MinEndpointVersion = 1;
+});
+
+builder.Services.SwaggerDocument(settings =>
+{
+    settings.DocumentSettings = generatorSettings =>
+    {
+        generatorSettings.Title = "OneGuard - WebApi";
+        generatorSettings.DocumentName = "v2";
+        generatorSettings.Version = "v2";
+    };
+    settings.EnableJWTBearerAuth = false;
+    settings.MaxEndpointVersion = 2;
+    settings.MinEndpointVersion = 2;
 });
 
 
